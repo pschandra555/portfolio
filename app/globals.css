@@ -1,0 +1,670 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────────────────────────────
+   TOKENS
+   Terminal (dark) is the base. "Printed dossier" (light) applies when the
+   OS prefers light and the user hasn't chosen, or when data-theme="light".
+   ───────────────────────────────────────────────────────────────────────── */
+
+:root {
+  color-scheme: dark;
+  --bg: #0d0f0e;
+  --bg-raised: #141716;
+  --ink: #e8e6e1;
+  --ink-muted: #8e8c86;
+  --rule: #2a2d2b;
+  --accent: #ffb000;
+  --accent-text: #ffb000;
+  --accent-ink: #0d0f0e; /* text placed ON an amber fill */
+  --accent-glow: 0 0 10px rgb(255 176 0 / 0.38), 0 0 2px rgb(255 176 0 / 0.5);
+  --redact: #e8e6e1;
+  --stamp: #e05a45;
+  --scanline-opacity: 0.05;
+  --grain-opacity: 0;
+
+  --ease-decrypt: cubic-bezier(0.7, 0, 0.2, 1);
+  --ease-stamp: cubic-bezier(0.3, 1.6, 0.5, 1);
+  --dur-fast: 180ms;
+  --dur-med: 420ms;
+  --dur-slow: 900ms;
+
+  --gutter: clamp(16px, 3vw, 32px);
+  --section-y: clamp(96px, 16vh, 200px);
+  --hud-h: 44px;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #efece4;
+  --bg-raised: #f7f5ef;
+  --ink: #151513;
+  --ink-muted: #5c5a54;
+  --rule: #cfcbc0;
+  --accent: #ffb000;
+  --accent-text: #8a5a00;
+  --accent-ink: #151513;
+  --accent-glow: none;
+  --redact: #151513;
+  --stamp: #a3271a;
+  --scanline-opacity: 0;
+  --grain-opacity: 0.5;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg: #efece4;
+    --bg-raised: #f7f5ef;
+    --ink: #151513;
+    --ink-muted: #5c5a54;
+    --rule: #cfcbc0;
+    --accent: #ffb000;
+    --accent-text: #8a5a00;
+    --accent-ink: #151513;
+    --accent-glow: none;
+    --redact: #151513;
+    --stamp: #a3271a;
+    --scanline-opacity: 0;
+    --grain-opacity: 0.5;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-raised: var(--bg-raised);
+  --color-ink: var(--ink);
+  --color-muted: var(--ink-muted);
+  --color-rule: var(--rule);
+  --color-accent: var(--accent);
+  --color-accent-text: var(--accent-text);
+  --color-accent-ink: var(--accent-ink);
+  --color-redact: var(--redact);
+  --color-stamp: var(--stamp);
+
+  --font-display: var(--font-big-shoulders), "Arial Narrow", sans-serif;
+  --font-sans: var(--font-inter-tight), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+  --font-type: var(--font-special-elite), "Courier New", monospace;
+
+  --text-micro: 0.6875rem; /* 11px */
+  --text-micro--line-height: 1.4;
+  --text-display: clamp(4rem, 18vw, 20rem);
+  --text-display--line-height: 0.82;
+
+  --ease-decrypt: cubic-bezier(0.7, 0, 0.2, 1);
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────── */
+
+html {
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 1.0625rem; /* 17px */
+  line-height: 1.6;
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: clip;
+}
+
+/* Printed-dossier paper grain (light theme only). */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.35  0 0 0 0 0.3  0 0 0 0 0.22  0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* In the base layer so a component can swap it for its own visible indicator. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 3px;
+    border-radius: 1px;
+  }
+}
+
+a {
+  color: inherit;
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: 1px;
+}
+
+/* ── Type roles ───────────────────────────────────────────────────────── */
+
+.t-display {
+  font-family: var(--font-display);
+  font-variation-settings: "opsz" 72;
+  font-weight: 900;
+  line-height: 0.82;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+.t-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  line-height: 1.4;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.t-type {
+  font-family: var(--font-type);
+}
+
+/* Decrypted amber text: phosphor glow in terminal mode, highlighter in print mode. */
+.decrypted {
+  color: var(--accent-text);
+  text-shadow: var(--accent-glow);
+}
+
+.highlight {
+  background: linear-gradient(transparent 12%, var(--accent) 12%, var(--accent) 88%, transparent 88%);
+  color: var(--accent-ink);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding-inline: 0.15em;
+}
+
+/* CRT scanlines, applied only to elements that are "on screen" (hero, terminal). */
+.crt {
+  position: relative;
+}
+.crt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--scanline-opacity);
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0 2px,
+    rgb(0 0 0 / 0.9) 2px 3px
+  );
+  mix-blend-mode: multiply;
+}
+
+/* ── Decrypt text: per-character glyph overlay (no layout shift) ─────── */
+
+.dc-word {
+  display: inline-block;
+  white-space: nowrap;
+}
+.dc-ch {
+  position: relative;
+  display: inline-block;
+}
+.dc-ch > .dc-g {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  color: var(--accent-text);
+  text-shadow: var(--accent-glow);
+}
+.dc-ch[data-locked="false"] > .dc-c {
+  color: transparent;
+}
+.dc-ch[data-locked="true"] > .dc-g {
+  display: none;
+}
+
+/* ── Lenis ────────────────────────────────────────────────────────────── */
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis:not(.lenis-autoToggle).lenis-stopped {
+  overflow: clip;
+}
+.lenis [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+/* ── Utilities ────────────────────────────────────────────────────────── */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  transform: translateY(-200%);
+  background: var(--accent);
+  color: var(--accent-ink);
+  padding: 8px 12px;
+}
+.skip-link:focus {
+  transform: none;
+}
+
+.rule-x {
+  height: 1px;
+  background: var(--rule);
+}
+
+/* ── Reduced motion: everything is already declassified ───────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .dc-ch > .dc-g {
+    display: none !important;
+  }
+  .dc-ch > .dc-c {
+    color: inherit !important;
+  }
+}
+
+/* ── Rubber stamp ─────────────────────────────────────────────────────── */
+
+.stamp {
+  border: 3px double currentColor;
+  border-radius: 2px;
+  /* Uneven ink: a noise mask knocks out ~10% of the stamp, never enough to hurt legibility. */
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='60'%3E%3Cfilter id='i'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' seed='7'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1 1 1 1 1 0.35 1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23i)'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='60'%3E%3Cfilter id='i'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' seed='7'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1 1 1 1 1 0.35 1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23i)'/%3E%3C/svg%3E");
+  -webkit-mask-size: 120px 60px;
+  mask-size: 120px 60px;
+}
+.stamp[data-dashed] {
+  border: 2px dashed currentColor;
+}
+
+/* ── Hero: once the WebGL field is live, the name is drawn in glyphs ──── */
+
+.hero[data-field="webgl"] h1 .dc-c {
+  /* A faint body + hairline keeps the name legible; the glyph field supplies the fill. */
+  color: color-mix(in srgb, var(--ink) 7%, transparent);
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--ink) 38%, transparent);
+  transition: color 1.4s var(--ease-decrypt) 0.5s;
+}
+
+/* ── Handshake preloader (pure CSS, see components/preloader/Handshake.tsx) ── */
+
+.handshake {
+  display: none;
+}
+html[data-handshake] .handshake {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  animation: hs-out 360ms var(--ease-decrypt) 1.1s forwards;
+}
+@keyframes hs-out {
+  to {
+    clip-path: inset(0 0 100% 0);
+    visibility: hidden;
+  }
+}
+.hs-line {
+  clip-path: inset(0 100% 0 0);
+  animation: hs-type 150ms steps(18, end) calc(var(--i) * 125ms) forwards;
+}
+@keyframes hs-type {
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+.hs-reel {
+  display: inline-block;
+  height: 1em;
+  overflow: hidden;
+  vertical-align: top;
+}
+.hs-strip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: hs-roll 520ms steps(var(--n), end) var(--d) forwards;
+}
+.hs-strip > span {
+  display: block;
+  height: 1em;
+  line-height: 1;
+}
+@keyframes hs-roll {
+  to {
+    transform: translateY(calc(var(--n) * -1em));
+  }
+}
+@property --hs {
+  syntax: "<integer>";
+  initial-value: 0;
+  inherits: false;
+}
+.hs-count {
+  counter-reset: hs var(--hs);
+  animation: hs-count 1s cubic-bezier(0.5, 0, 0.2, 1) forwards;
+}
+.hs-count::after {
+  content: counter(hs) "%";
+}
+@keyframes hs-count {
+  to {
+    --hs: 100;
+  }
+}
+.hs-bar {
+  transform-origin: left;
+  transform: scaleX(0);
+  animation: hs-bar 1s cubic-bezier(0.5, 0, 0.2, 1) forwards;
+}
+@keyframes hs-bar {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* ── Redaction peel (components/dossier/RedactedStory.tsx) ────────────── */
+
+.rd-w {
+  position: relative;
+}
+.redact-live .rd-w::after {
+  content: "";
+  position: absolute;
+  inset: 0.14em -0.1em 0.08em;
+  background: var(--redact);
+  transform-origin: right center;
+  transform: scaleX(clamp(0, calc(1 - (var(--p) - var(--t)) * 16), 1));
+}
+
+/* ── Operations: sticky case files + CRT monitor ──────────────────────── */
+
+@media (min-width: 768px) {
+  .op-card {
+    top: calc(96px + var(--i) * 18px);
+    min-height: min(78svh, 680px);
+    will-change: transform;
+  }
+}
+.crt-frame {
+  padding: 14px;
+  border-radius: 22px;
+  background: linear-gradient(160deg, #2a2d2b, #121413);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 20px 40px -20px rgb(0 0 0 / 0.7);
+}
+.crt-frame .crt::after {
+  --scanline-opacity: 0.18;
+  border-radius: 10px;
+  box-shadow: inset 0 0 60px rgb(0 0 0 / 0.75);
+}
+.crt-noise {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='1'/%3E%3CfeColorMatrix values='0 0 0 0 0.6  0 0 0 0 0.6  0 0 0 0 0.6  0 0 0 0.16 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.crt-noise.is-live {
+  animation: crt-static 0.3s steps(4) infinite;
+}
+@keyframes crt-static {
+  25% { background-position: 37px 91px; }
+  50% { background-position: -61px 13px; }
+  75% { background-position: 83px -47px; }
+}
+
+/* Folder → case page morph */
+::view-transition-group(.morph) {
+  animation-duration: 520ms;
+  animation-timing-function: cubic-bezier(0.7, 0, 0.2, 1);
+}
+
+/* ── SIEM log rows stream in (components/sections/SiemLog.tsx) ────────── */
+
+.siem-live .siem-row {
+  opacity: 0;
+  transform: translateY(10px);
+  clip-path: inset(0 100% 0 0);
+  transition:
+    opacity 260ms ease-out,
+    transform 360ms var(--ease-decrypt),
+    clip-path 480ms steps(24, end);
+}
+.siem-live .siem-row[data-in] {
+  opacity: 1;
+  transform: none;
+  clip-path: inset(0 0 0 0);
+}
+
+/* ── Copy stamp slam ──────────────────────────────────────────────────── */
+
+.stamp-slam {
+  animation: stamp-slam 2.2s var(--ease-stamp) forwards;
+}
+@keyframes stamp-slam {
+  0% { opacity: 0; transform: scale(2.4) rotate(6deg); }
+  14% { opacity: 1; transform: scale(1) rotate(0); }
+  18% { transform: scale(1.04); }
+  22% { transform: scale(1); }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ── Reticle cursor (components/cursor/Reticle.tsx) ───────────────────── */
+
+html.has-reticle,
+html.has-reticle * {
+  cursor: none;
+}
+html.has-reticle :is(input, textarea, [contenteditable="true"]) {
+  cursor: text;
+}
+.reticle {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-fast);
+}
+html.has-reticle .reticle[data-visible="true"] {
+  opacity: 1;
+}
+.reticle-ring,
+.reticle-dot,
+.reticle-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+.reticle-ring {
+  --s: 28px;
+  width: var(--s);
+  height: var(--s);
+  translate: calc(var(--rx) - 50%) calc(var(--ry) - 50%);
+  transition:
+    width var(--dur-med) var(--ease-decrypt),
+    height var(--dur-med) var(--ease-decrypt),
+    opacity var(--dur-fast),
+    scale var(--dur-fast);
+}
+.reticle-ring > i {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-color: var(--accent-text);
+  border-style: solid;
+  border-width: 0;
+}
+.reticle-ring > i:nth-child(1) { left: 0; top: 0; border-left-width: 1.5px; border-top-width: 1.5px; }
+.reticle-ring > i:nth-child(2) { right: 0; top: 0; border-right-width: 1.5px; border-top-width: 1.5px; }
+.reticle-ring > i:nth-child(3) { left: 0; bottom: 0; border-left-width: 1.5px; border-bottom-width: 1.5px; }
+.reticle-ring > i:nth-child(4) { right: 0; bottom: 0; border-right-width: 1.5px; border-bottom-width: 1.5px; }
+.reticle-dot {
+  width: 4px;
+  height: 4px;
+  background: var(--accent);
+  translate: calc(var(--x) - 50%) calc(var(--y) - 50%);
+}
+.reticle-label {
+  translate: calc(var(--rx) + 22px) calc(var(--ry) + 14px);
+  background: var(--accent);
+  color: var(--accent-ink);
+  padding: 1px 5px;
+  opacity: 0;
+  transition: opacity var(--dur-fast);
+}
+.reticle-label:empty {
+  display: none;
+}
+.reticle[data-mode="hover"] .reticle-ring {
+  --s: 46px;
+}
+.reticle[data-mode="hover"] .reticle-label,
+.reticle[data-mode="lens"] .reticle-label {
+  opacity: 1;
+}
+.reticle[data-mode="lens"] .reticle-ring {
+  opacity: 0;
+}
+.reticle[data-mode="text"] {
+  opacity: 0 !important;
+}
+.reticle[data-down] .reticle-ring {
+  scale: 0.8;
+}
+
+/* ── Dialogs: terminal + file index ───────────────────────────────────── */
+
+.terminal-dialog,
+.palette-dialog {
+  position: fixed;
+  inset: auto;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+}
+.terminal-dialog {
+  left: 50%;
+  bottom: clamp(16px, 5vh, 48px);
+  transform: translateX(-50%);
+}
+.palette-dialog {
+  left: 50%;
+  top: clamp(64px, 14vh, 140px);
+  transform: translateX(-50%);
+}
+.terminal-dialog[open] {
+  animation: dlg-in 260ms var(--ease-decrypt);
+}
+.palette-dialog[open] {
+  animation: dlg-in 200ms var(--ease-decrypt);
+}
+@keyframes dlg-in {
+  from {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+.term-entry > p:not(:first-child) {
+  animation: term-line 160ms steps(12, end) both;
+  animation-delay: calc(var(--i, 0) * 18ms);
+}
+@keyframes term-line {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* ── Sound meter ──────────────────────────────────────────────────────── */
+
+.eq-bar {
+  animation: eq 900ms ease-in-out infinite alternate;
+}
+@keyframes eq {
+  from { transform: scaleY(0.35); }
+  to { transform: scaleY(1); }
+}
+
+/* ── Page transition: a redaction bar sweeps across the screen ────────────
+   Links pass transitionTypes={["redact"]}. The folder→case morph doesn't,
+   so it keeps its shared-element animation. */
+
+.vt-sweep {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  pointer-events: none;
+  opacity: 0;
+  view-transition-name: redaction-sweep;
+}
+html:active-view-transition-type(redact)::view-transition-group(redaction-sweep) {
+  background: var(--redact);
+  animation: vt-sweep 760ms var(--ease-decrypt) both;
+}
+::view-transition-old(.redact-out) {
+  animation: vt-out 760ms steps(1, end) both;
+}
+::view-transition-new(.redact-in) {
+  animation: vt-in 760ms steps(1, end) both;
+}
+/* Clicks during a transition go to the live page. */
+::view-transition {
+  pointer-events: none;
+}
+@keyframes vt-sweep {
+  0% { clip-path: inset(0 100% 0 0); }
+  45%, 55% { clip-path: inset(0 0 0 0); }
+  100% { clip-path: inset(0 0 0 100%); }
+}
+@keyframes vt-out {
+  0%, 49.9% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+@keyframes vt-in {
+  0%, 49.9% { opacity: 0; }
+  50%, 100% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
