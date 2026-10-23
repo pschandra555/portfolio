@@ -38,12 +38,18 @@ Rules, in priority order:
 Style: plain text only, no markdown, no lists unless asked. Two to five short sentences. Refer to the subject as ${profile.firstName} or "the subject". Dry, precise, slightly noir. Never use emoji.`;
 
 const json = (status: number, body: object, headers: HeadersInit = {}) =>
-  Response.json(body, { status, headers: { "Cache-Control": "no-store", ...headers } });
+  Response.json(body, {
+    status,
+    headers: { "Cache-Control": "no-store", ...headers },
+  });
 
 const clean = (s: string) =>
   s
     .normalize("NFKC")
-    .replace(/[\u0000-\u0008\u000B-\u001F\u007F\u200B-\u200F\u2028-\u202E\u2066-\u2069]/g, "")
+    .replace(
+      /[\u0000-\u0008\u000B-\u001F\u007F\u200B-\u200F\u2028-\u202E\u2066-\u2069]/g,
+      "",
+    )
     .trim();
 
 function parse(raw: string): Msg[] | null {
@@ -57,14 +63,20 @@ function parse(raw: string): Msg[] | null {
   const keys = Object.keys(body);
   if (keys.length !== 1 || keys[0] !== "messages") return null;
   const msgs = (body as { messages: unknown }).messages;
-  if (!Array.isArray(msgs) || msgs.length < 1 || msgs.length > MAX_TURNS) return null;
+  if (!Array.isArray(msgs) || msgs.length < 1 || msgs.length > MAX_TURNS)
+    return null;
   const out: Msg[] = [];
   for (const m of msgs) {
     if (!m || typeof m !== "object") return null;
     const { role, content } = m as Record<string, unknown>;
-    if ((role !== "user" && role !== "assistant") || typeof content !== "string") return null;
+    if (
+      (role !== "user" && role !== "assistant") ||
+      typeof content !== "string"
+    )
+      return null;
     const c = clean(content);
-    if (!c || c.length > (role === "user" ? MAX_USER : MAX_ASSISTANT)) return null;
+    if (!c || c.length > (role === "user" ? MAX_USER : MAX_ASSISTANT))
+      return null;
     out.push({ role, content: c });
   }
   return out[out.length - 1].role === "user" ? out : null;
@@ -72,7 +84,11 @@ function parse(raw: string): Msg[] | null {
 
 function clientIp(req: Request) {
   // On Vercel, x-forwarded-for is set by the platform (first hop = client).
-  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "unknown"
+  );
 }
 
 const textStream = (text: string) => {
@@ -101,12 +117,18 @@ export async function POST(req: Request) {
   const origin = req.headers.get("origin");
   if (origin) {
     try {
-      if (new URL(origin).host !== new URL(req.url).host) return json(403, { error: "forbidden" });
+      if (new URL(origin).host !== new URL(req.url).host)
+        return json(403, { error: "forbidden" });
     } catch {
       return json(403, { error: "forbidden" });
     }
   }
-  if (!req.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
+  if (
+    !req.headers
+      .get("content-type")
+      ?.toLowerCase()
+      .startsWith("application/json")
+  ) {
     return json(415, { error: "expected application/json" });
   }
   const declared = Number(req.headers.get("content-length") ?? 0);
@@ -123,17 +145,33 @@ export async function POST(req: Request) {
     { name: "day", max: 40, windowSec: 86_400 },
   ]);
   if (!perIp.ok) {
-    return json(429, { error: "rate limited", retryAfter: perIp.retryAfter }, { "Retry-After": String(perIp.retryAfter) });
+    return json(
+      429,
+      { error: "rate limited", retryAfter: perIp.retryAfter },
+      { "Retry-After": String(perIp.retryAfter) },
+    );
   }
 
   const question = messages[messages.length - 1].content;
   const key = process.env.GROQ_API_KEY;
-  const global = key ? await rateLimit("global", [{ name: "global-day", max: DAILY_CAP, windowSec: 86_400 }]) : { ok: false };
+  const global = key
+    ? await rateLimit("global", [
+        { name: "global-day", max: DAILY_CAP, windowSec: 86_400 },
+      ])
+    : { ok: false };
   if (!key || !global.ok) {
-    return new Response(textStream(fallbackAnswer(question)), { headers: streamHeaders("offline") });
+    return new Response(textStream(fallbackAnswer(question)), {
+      headers: streamHeaders("offline"),
+    });
   }
 
-  const context = retrieve(messages.filter((m) => m.role === "user").slice(-2).map((m) => m.content).join(" "))
+  const context = retrieve(
+    messages
+      .filter((m) => m.role === "user")
+      .slice(-2)
+      .map((m) => m.content)
+      .join(" "),
+  )
     .map((c) => `## ${c.title}\n${c.text}`)
     .join("\n\n");
 
@@ -141,15 +179,23 @@ export async function POST(req: Request) {
   try {
     upstream = await fetch(GROQ_URL, {
       method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
         model: MODEL,
         stream: true,
         temperature: 0.3,
         max_tokens: 400,
-        ...(MODEL.startsWith("openai/gpt-oss") ? { reasoning_effort: "low", include_reasoning: false } : {}),
+        ...(MODEL.startsWith("openai/gpt-oss")
+          ? { reasoning_effort: "low", include_reasoning: false }
+          : {}),
         messages: [
-          { role: "system", content: `${SYSTEM}\n\nFILE: CORE FACTS (always true)\n${CORE_FACTS}\n\nFILE: RELEVANT RECORDS\n${context}` },
+          {
+            role: "system",
+            content: `${SYSTEM}\n\nFILE: CORE FACTS (always true)\n${CORE_FACTS}\n\nFILE: RELEVANT RECORDS\n${context}`,
+          },
           ...messages.slice(-6),
         ],
       }),
@@ -157,12 +203,16 @@ export async function POST(req: Request) {
       cache: "no-store",
     });
   } catch {
-    return new Response(textStream(fallbackAnswer(question)), { headers: streamHeaders("offline") });
+    return new Response(textStream(fallbackAnswer(question)), {
+      headers: streamHeaders("offline"),
+    });
   }
   if (!upstream.ok || !upstream.body) {
     // Never forward upstream error bodies (they can echo request details).
     console.warn(`[interrogate] upstream ${upstream.status}`);
-    return new Response(textStream(fallbackAnswer(question)), { headers: streamHeaders("offline") });
+    return new Response(textStream(fallbackAnswer(question)), {
+      headers: streamHeaders("offline"),
+    });
   }
 
   // SSE → plain text deltas → honesty guard → client.
@@ -173,32 +223,36 @@ export async function POST(req: Request) {
   const reader = upstream.body.getReader();
 
   const out = new ReadableStream<Uint8Array>({
+    // A stream only calls pull() again if the last call enqueued something, so
+    // keep reading until there's guarded text to send (or the upstream ends).
     async pull(ctrl) {
       try {
-        const { done, value } = await reader.read();
-        if (done) {
-          const rest = guard.end();
-          if (rest) ctrl.enqueue(enc.encode(rest));
-          return ctrl.close();
-        }
-        carry += dec.decode(value, { stream: true });
-        const lines = carry.split("\n");
-        carry = lines.pop() ?? "";
-        let text = "";
-        for (const line of lines) {
-          const l = line.trim();
-          if (!l.startsWith("data:")) continue;
-          const data = l.slice(5).trim();
-          if (data === "[DONE]") continue;
-          try {
-            const delta = JSON.parse(data)?.choices?.[0]?.delta?.content;
-            if (typeof delta === "string") text += delta;
-          } catch {
-            /* partial or keep-alive line */
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) {
+            const rest = guard.end();
+            if (rest) ctrl.enqueue(enc.encode(rest));
+            return ctrl.close();
           }
+          carry += dec.decode(value, { stream: true });
+          const lines = carry.split("\n");
+          carry = lines.pop() ?? "";
+          let text = "";
+          for (const line of lines) {
+            const l = line.trim();
+            if (!l.startsWith("data:")) continue;
+            const data = l.slice(5).trim();
+            if (data === "[DONE]") continue;
+            try {
+              const delta = JSON.parse(data)?.choices?.[0]?.delta?.content;
+              if (typeof delta === "string") text += delta;
+            } catch {
+              /* partial or keep-alive line */
+            }
+          }
+          const safe = guard.push(text);
+          if (safe) return ctrl.enqueue(enc.encode(safe));
         }
-        const safe = guard.push(text);
-        if (safe) ctrl.enqueue(enc.encode(safe));
       } catch {
         const rest = guard.end();
         if (rest) ctrl.enqueue(enc.encode(rest));
